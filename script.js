@@ -3,26 +3,47 @@
  * Data handling is now managed by PHP/MySQL via dashboard.php
  */
 
+// --- DATABASE-DRIVEN DATA BRIDGE ---
+// These variables now pull from the PHP-injected window.appData object
+const students = window.appData.students || [];
+const schedules = window.appData.schedules || [];
+const courses = window.appData.courses || [];
+const attendanceRecords = window.appData.attendance || [];
+const attendanceSummary = [];
+
+// --- TEACHER/USER CONFIG ---
+// Keep your existing userAccounts and teachers objects for login logic 
+// (or migrate them to the DB as well for full production readiness)
+const userAccounts = {};
+const teachers = {};
+
+// --- REST OF YOUR FUNCTIONS ---
+// (Keep all your existing functions below this point, 
+// they will now automatically use the 'students' and 'schedules' constants above)
+
 // Sidebar navigation logic
 function showSection(id, el) {
-    // Hide all sections
+
     document.querySelectorAll(".section").forEach(section => {
         section.classList.remove("active");
     });
 
-    // Show selected section
-    document.getElementById(id).classList.add("active");
+    const selectedSection = document.getElementById(id);
 
-    // Update active state in sidebar
+    if (selectedSection) {
+        selectedSection.classList.add("active");
+    }
+
     document.querySelectorAll(".sidebar-menu li").forEach(item => {
         item.classList.remove("active");
     });
+
     if (el) {
         el.classList.add("active");
     }
 
-    // Update Header Title
     const welcomeTitle = document.getElementById("welcome-title");
+
     const titles = {
         dashboard: "Dashboard Overview",
         students: "Student Management",
@@ -31,6 +52,7 @@ function showSection(id, el) {
         schedule: "Teacher Schedule",
         reports: "Report & Analysis"
     };
+
     if (welcomeTitle) {
         welcomeTitle.innerText = titles[id] || "Dashboard Overview";
     }
@@ -38,45 +60,383 @@ function showSection(id, el) {
 
 // Global UI Helper for demo actions
 function demoAlert(action) {
-    alert(action + " clicked. This is a front-end prototype feature.");
+    alert(action + " clicked.");
 }
 
-// Print Report functionality
+// Logout
+function logout() {
+    window.location.href = "dashboard.php?action=logout";
+}
+
+// ======================================
+// STUDENT SEARCH/FILTER
+// ======================================
+
+function renderStudents() {
+
+    const searchInput = document.getElementById("studentSearch");
+
+    if (!searchInput) return;
+
+    const search = searchInput.value.toLowerCase().trim();
+
+    const rows = document.querySelectorAll("#student-table-body tr");
+
+    rows.forEach(row => {
+
+        const rowText = row.innerText.toLowerCase();
+
+        if (rowText.includes(search)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+
+    });
+}
+
+function clearStudentSearch() {
+
+    const search = document.getElementById("studentSearch");
+
+    if (search) {
+        search.value = "";
+    }
+
+    renderStudents();
+}
+
+// ======================================
+// ATTENDANCE RENDER
+// ======================================
+
+function renderAttendance() {
+
+    const body = document.getElementById("attendance-table-body");
+
+    if (!body) return;
+
+    if (!attendanceRecords.length) {
+
+        body.innerHTML = `
+            <tr>
+                <td colspan="6">No attendance records found.</td>
+            </tr>
+        `;
+
+        return;
+    }
+
+    const rows = attendanceRecords.map(record => `
+
+        <tr>
+            <td>${record.Student_Name || 'N/A'}</td>
+            <td>${record.Class_Name || 'N/A'}</td>
+            <td>${record.Subject_Name || 'N/A'}</td>
+            <td>${record.Teacher_Name || 'N/A'}</td>
+            <td>${record.Date || 'N/A'}</td>
+
+            <td>
+                <span class="status ${record.Status === "Present" ? "present" : "absent"}">
+                    ${record.Status || 'Absent'}
+                </span>
+            </td>
+        </tr>
+
+    `).join("");
+
+    body.innerHTML = rows;
+}
+
+// ======================================
+// COURSE RENDER
+// ======================================
+
+function renderCourses() {
+
+    const body = document.getElementById("course-table-body");
+
+    if (!body) return;
+
+    if (!courses.length) {
+
+        body.innerHTML = `
+            <tr>
+                <td colspan="7">No courses found.</td>
+            </tr>
+        `;
+
+        return;
+    }
+
+    const rows = courses.map(course => `
+
+        <tr>
+
+            <td>${course.Subject_Name || 'N/A'}</td>
+            <td>${course.Teacher_Name || 'N/A'}</td>
+            <td>${course.Type || 'N/A'}</td>
+            <td>${course.Total_Students || '0'}</td>
+            <td>${course.Day || 'N/A'}</td>
+            <td>${course.Time || 'N/A'}</td>
+
+            <td>
+                <button class="small-btn">
+                    Edit
+                </button>
+            </td>
+
+        </tr>
+
+    `).join("");
+
+    body.innerHTML = rows;
+}
+
+// ======================================
+// SCHEDULE RENDER
+// ======================================
+
+function renderSchedule() {
+
+    const scheduleBoard = document.getElementById("schedule-board");
+    const scheduleTableBody = document.getElementById("schedule-table-body");
+
+    if (!scheduleBoard || !scheduleTableBody) return;
+
+    const dayOrder = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+    ];
+
+    // =========================
+    // GRAPHIC BOARD
+    // =========================
+
+    scheduleBoard.innerHTML = dayOrder.map(day => {
+
+        const daySchedules = schedules.filter(
+            item => item.Day === day
+        );
+
+        const cards = daySchedules.map(item => {
+
+            let theme = "general";
+
+            const subject = (item.Subject_Name || "").toLowerCase();
+
+            if (subject.includes("math")) {
+                theme = "math";
+            }
+            else if (subject.includes("science")) {
+                theme = "science";
+            }
+            else if (subject.includes("english")) {
+                theme = "english";
+            }
+
+            return `
+                <div class="schedule-event ${theme}">
+
+                    <div class="schedule-time">
+                        ${item.Formatted_Time || "N/A"}
+                    </div>
+
+                    <h3>${item.Subject_Name || "N/A"}</h3>
+
+                    <p>${item.Type || "N/A"}</p>
+
+                    <span>
+                        <i class="fa-solid fa-user"></i>
+                        ${item.Teacher_Name || "N/A"}
+                    </span>
+
+                    <span>
+                        <i class="fa-solid fa-location-dot"></i>
+                        ${item.Venue || "N/A"}
+                    </span>
+
+                </div>
+            `;
+        }).join("");
+
+        return `
+            <div class="schedule-day-card">
+
+                <div class="schedule-day-title">
+
+                    <h3>${day}</h3>
+
+                    <span>
+                        ${daySchedules.length} class${daySchedules.length === 1 ? "" : "es"}
+                    </span>
+
+                </div>
+
+                ${cards || `<div class="empty-schedule">No class</div>`}
+
+            </div>
+        `;
+    }).join("");
+
+    // =========================
+    // TABLE
+    // =========================
+
+    scheduleTableBody.innerHTML = schedules.map(item => `
+
+        <tr>
+
+            <td>${item.Teacher_Name || 'N/A'}</td>
+            <td>${item.Subject_Name || 'N/A'}</td>
+            <td>${item.Type || 'N/A'}</td>
+            <td>${item.Day || 'N/A'}</td>
+            <td>${item.Formatted_Time || 'N/A'}</td>
+            <td>${item.Venue || 'N/A'}</td>
+
+        </tr>
+
+    `).join("");
+}
+
+// ======================================
+// REPORT GENERATION
+// ======================================
+
+function generateReport(showAlert = true) {
+
+    const reportType = document.getElementById("reportType");
+    const reportMonth = document.getElementById("reportMonth");
+    const reportYear = document.getElementById("reportYear");
+
+    const previewType = document.getElementById("previewReportType");
+    const previewMonth = document.getElementById("previewMonth");
+    const previewYear = document.getElementById("previewYear");
+
+    if (previewType && reportType) {
+        previewType.innerText = reportType.options[reportType.selectedIndex].text;
+    }
+
+    if (previewMonth && reportMonth) {
+        previewMonth.innerText = reportMonth.value;
+    }
+
+    if (previewYear && reportYear) {
+        previewYear.innerText = reportYear.value;
+    }
+
+    const date = new Date();
+
+    const generatedDate = document.getElementById("generatedDate");
+
+    if (generatedDate) {
+
+        generatedDate.innerText =
+            "Generated Date: " +
+            date.toLocaleDateString("en-GB");
+    }
+
+    if (showAlert) {
+        alert("Report generated successfully.");
+    }
+}
+
+// ======================================
+// PRINT REPORT
+// ======================================
+
 function printReport() {
-    // 1. Gather live statistical data from the report dashboard interface
-    const reportType = document.getElementById("previewReportType")?.innerText || "Monthly Attendance Report";
-    const reportMonth = document.getElementById("previewMonth")?.innerText || "May";
-    const reportYear = document.getElementById("previewYear")?.innerText || "2026";
-    const scopeName = document.getElementById("previewRole")?.innerText || "Admin";
-    const generatedDate = document.getElementById("generatedDate")?.innerText || new Date().toLocaleDateString('en-GB');
 
-    // 2. Fetch active metrics from the dashboard summary cards
-    const summaryBoxes = document.getElementById("report-summary-box").getElementsByTagName("h2");
-    const totalStudents = summaryBoxes[0]?.innerText || "0";
-    const totalCourses = summaryBoxes[1]?.innerText || "0";
-    const avgAttendanceStr = summaryBoxes[2]?.innerText || "0%";
-    const totalAbsences = summaryBoxes[3]?.innerText || "0";
+    // 1. Gather live statistical data
+    const reportType =
+        document.getElementById("previewReportType")?.innerText ||
+        "Monthly Attendance Report";
 
-    // Parse values cleanly for the mathematical conic gradient background
-    const avgAttendance = parseFloat(avgAttendanceStr) || 0;
-    const absentRate = (100 - avgAttendance).toFixed(1);
+    const reportMonth =
+        document.getElementById("previewMonth")?.innerText ||
+        "May";
 
-    // 3. Capture the data table rows from the active screen view
-    const tableBodyRows = document.getElementById("report-table-body").innerHTML;
+    const reportYear =
+        document.getElementById("previewYear")?.innerText ||
+        "2026";
 
-    // 4. Open a clean print interface frame window
-    const printWindow = window.open("", "", "width=1024,height=768");
+    const scopeName =
+        document.getElementById("previewRole")?.innerText ||
+        "Admin";
+
+    const generatedDate =
+        document.getElementById("generatedDate")?.innerText ||
+        new Date().toLocaleDateString("en-GB");
+
+    // 2. Fetch summary metrics
+    const summaryContainer =
+        document.getElementById("report-summary-box");
+
+    const summaryBoxes =
+        summaryContainer
+            ? summaryContainer.getElementsByTagName("h2")
+            : [];
+
+    const totalStudents =
+        summaryBoxes[0]?.innerText || "0";
+
+    const totalCourses =
+        summaryBoxes[1]?.innerText || "0";
+
+    const avgAttendanceStr =
+        summaryBoxes[2]?.innerText || "0%";
+
+    const totalAbsences =
+        summaryBoxes[3]?.innerText || "0";
+
+    // 3. Parse percentages
+    const avgAttendance =
+        parseFloat(avgAttendanceStr) || 0;
+
+    const absentRate =
+        (100 - avgAttendance).toFixed(1);
+
+    // 4. Get report table rows
+    const tableBodyRows =
+        document.getElementById("report-table-body")?.innerHTML || `
+            <tr>
+                <td colspan="9">No report data found.</td>
+            </tr>
+        `;
+
+    // 5. Open print window
+    const printWindow =
+        window.open("", "", "width=1024,height=768");
 
     printWindow.document.write(`
+
         <!DOCTYPE html>
+
         <html lang="en">
+
         <head>
+
             <meta charset="UTF-8">
-            <title>My Tuition A+ - ${reportType}</title>
+
+            <title>
+                My Tuition A+ - ${reportType}
+            </title>
+
             <style>
-                /* FORCE BROWSER TO SHOW BACKGROUND GRAPHICS & COLORS ON PRINT/PDF */
+
                 @media print {
-                    body, div, span, table, td, th, .chart-wrapper, .legend-color {
+                    body,
+                    div,
+                    span,
+                    table,
+                    td,
+                    th,
+                    .chart-wrapper,
+                    .legend-color {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                         color-adjust: exact !important;
@@ -87,12 +447,12 @@ function printReport() {
                     size: A4;
                     margin: 20mm 15mm;
                 }
-                
+
                 * {
                     box-sizing: border-box;
                     font-family: Arial, sans-serif;
                 }
-                
+
                 body {
                     background: #ffffff;
                     color: #0f172a;
@@ -100,11 +460,8 @@ function printReport() {
                     padding: 0;
                     font-size: 13px;
                     line-height: 1.5;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
                 }
-                
-                /* Layout Header */
+
                 .print-header {
                     display: table;
                     width: 100%;
@@ -112,33 +469,32 @@ function printReport() {
                     padding-bottom: 15px;
                     margin-bottom: 25px;
                 }
-                
+
                 .brand-side {
                     display: table-cell;
                     vertical-align: middle;
                 }
-                
+
                 .brand-side h1 {
                     font-size: 26px;
                     font-weight: 800;
                     margin: 0 0 4px 0;
                     color: #0f172a;
                     text-transform: uppercase;
-                    letter-spacing: -0.5px;
                 }
-                
+
                 .brand-side p {
                     margin: 0;
                     color: #475569;
                     font-size: 13px;
                 }
-                
+
                 .badge-side {
                     display: table-cell;
                     text-align: right;
                     vertical-align: middle;
                 }
-                
+
                 .scope-badge {
                     display: inline-block;
                     padding: 8px 16px;
@@ -150,27 +506,20 @@ function printReport() {
                     color: #0f172a;
                 }
 
-                /* Info Metadata Block Container */
                 .meta-table {
                     display: table;
                     width: 100%;
                     margin-bottom: 25px;
-                    border-collapse: separate;
                 }
-                
+
                 .meta-cell {
                     display: table-cell;
                     width: 25%;
                     background: #f8fafc;
                     border: 1px solid #e2e8f0;
                     padding: 10px 14px;
-                    border-radius: 6px;
                 }
-                
-                .meta-cell:not(:last-child) {
-                    border-right: none;
-                }
-                
+
                 .meta-cell p {
                     margin: 0 0 4px 0;
                     font-size: 11px;
@@ -178,7 +527,7 @@ function printReport() {
                     text-transform: uppercase;
                     font-weight: 600;
                 }
-                
+
                 .meta-cell h3 {
                     margin: 0;
                     font-size: 14px;
@@ -186,20 +535,19 @@ function printReport() {
                     font-weight: 700;
                 }
 
-                /* Summary Split Layout: Data Columns vs Pie Chart Wrapper */
                 .split-container {
                     display: table;
                     width: 100%;
                     margin-bottom: 30px;
                 }
-                
+
                 .metrics-column {
                     display: table-cell;
                     width: 55%;
                     vertical-align: top;
                     padding-right: 20px;
                 }
-                
+
                 .chart-column {
                     display: table-cell;
                     width: 45%;
@@ -218,14 +566,13 @@ function printReport() {
                     border-bottom: 1px solid #e2e8f0;
                     padding: 11px 8px;
                 }
-                
+
                 .metric-label {
                     display: table-cell;
                     font-weight: 600;
                     color: #475569;
-                    text-align: left;
                 }
-                
+
                 .metric-value {
                     display: table-cell;
                     text-align: right;
@@ -234,27 +581,25 @@ function printReport() {
                     color: #1e40af;
                 }
 
-                /* THE TRUSTED PIE CHART GRADIENT ENGINE */
                 .chart-wrapper {
                     display: inline-block;
                     width: 120px;
                     height: 120px;
                     border-radius: 50%;
-                    /* Explicitly sets green first up to its percentage, then handles the remaining red slice cleanly clockwise */
-                    background: conic-gradient(#10b981 0% ${avgAttendance}%, #ef4444 ${avgAttendance}% 100%) !important;
-                    vertical-align: middle;
-                    border: 1px solid rgba(0, 0, 0, 0.1);
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
+                    background:
+                        conic-gradient(
+                            #10b981 0% ${avgAttendance}%,
+                            #ef4444 ${avgAttendance}% 100%
+                        ) !important;
                 }
-                
+
                 .chart-legend {
                     display: inline-block;
                     vertical-align: middle;
                     text-align: left;
                     margin-left: 25px;
                 }
-                
+
                 .legend-item {
                     margin-bottom: 10px;
                     font-size: 13px;
@@ -262,21 +607,23 @@ function printReport() {
                     display: flex;
                     align-items: center;
                 }
-                
+
                 .legend-color {
                     display: inline-block;
                     width: 14px;
                     height: 14px;
                     border-radius: 3px;
                     margin-right: 8px;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
                 }
-                
-                .color-present { background-color: #10b981 !important; }
-                .color-absent { background-color: #ef4444 !important; }
 
-                /* Main Reporting Rows Data Table Grid */
+                .color-present {
+                    background-color: #10b981 !important;
+                }
+
+                .color-absent {
+                    background-color: #ef4444 !important;
+                }
+
                 h2.section-title {
                     font-size: 15px;
                     font-weight: 700;
@@ -284,15 +631,14 @@ function printReport() {
                     color: #0f172a;
                     border-left: 4px solid #1e40af;
                     padding-left: 8px;
-                    text-align: left;
                 }
-                
+
                 table.data-table {
                     width: 100%;
                     border-collapse: collapse;
                     margin-bottom: 25px;
                 }
-                
+
                 table.data-table th {
                     background: #0f172a;
                     color: #ffffff;
@@ -301,45 +647,37 @@ function printReport() {
                     text-transform: uppercase;
                     padding: 10px;
                     text-align: left;
-                    border: 1px solid #0f172a;
                 }
-                
+
                 table.data-table td {
                     padding: 10px;
                     border: 1px solid #e2e8f0;
                     color: #334155;
-                    text-align: left;
                 }
-                
+
                 table.data-table tr:nth-child(even) td {
                     background: #f8fafc;
                 }
 
-                /* Printable Status Contrast Management Pills */
-                .status-badge {
-                    display: inline-block;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-size: 11px;
-                    font-weight: 700;
-                }
-                
-                .status-badge.good { background: #dcfce7 !important; color: #14532d !important; }
-                .status-badge.warning { background: #fee2e2 !important; color: #7f1d1d !important; }
-
-                /* Sign-off Comments Box */
                 .remarks-box {
                     background: #f8fafc;
                     border-left: 4px solid #64748b;
                     padding: 14px;
                     border-radius: 0 6px 6px 0;
                     margin-bottom: 40px;
-                    text-align: left;
-                    page-break-inside: avoid;
                 }
-                
-                .remarks-box h4 { margin: 0 0 4px 0; font-size: 13px; color: #0f172a; }
-                .remarks-box p { margin: 0; color: #475569; font-size: 12px; }
+
+                .remarks-box h4 {
+                    margin: 0 0 4px 0;
+                    font-size: 13px;
+                    color: #0f172a;
+                }
+
+                .remarks-box p {
+                    margin: 0;
+                    color: #475569;
+                    font-size: 12px;
+                }
 
                 .footer-banner {
                     display: table;
@@ -349,84 +687,166 @@ function printReport() {
                     font-size: 11px;
                     color: #94a3b8;
                 }
-                
-                .footer-left { display: table-cell; text-align: left; }
-                .footer-right { display: table-cell; text-align: right; }
+
+                .footer-left {
+                    display: table-cell;
+                    text-align: left;
+                }
+
+                .footer-right {
+                    display: table-cell;
+                    text-align: right;
+                }
+
             </style>
+
         </head>
+
         <body>
 
             <div class="print-header">
+
                 <div class="brand-side">
                     <h1>My Tuition A+</h1>
                     <p>Smart Attendance Management & Analytics System</p>
                 </div>
+
                 <div class="badge-side">
-                    <span class="scope-badge">${scopeName} View Structure</span>
+                    <span class="scope-badge">
+                        ${scopeName} View Structure
+                    </span>
                 </div>
+
             </div>
 
             <div class="meta-table">
+
                 <div class="meta-cell">
                     <p>Report Category</p>
                     <h3>${reportType}</h3>
                 </div>
+
                 <div class="meta-cell">
                     <p>Target Month</p>
                     <h3>${reportMonth}</h3>
                 </div>
+
                 <div class="meta-cell">
                     <p>Target Year</p>
                     <h3>${reportYear}</h3>
                 </div>
+
                 <div class="meta-cell">
                     <p>Extraction Date</p>
-                    <h3>${generatedDate.replace("Generated Date: ", "")}</h3>
+                    <h3>
+                        ${generatedDate.replace("Generated Date: ", "")}
+                    </h3>
                 </div>
+
             </div>
 
             <div class="split-container">
+
                 <div class="metrics-column">
-                    <h2 class="section-title">Performance Executive Summary</h2>
+
+                    <h2 class="section-title">
+                        Performance Executive Summary
+                    </h2>
+
                     <div class="metric-row">
-                        <div class="metric-label">Total Active Enrolled Students</div>
-                        <div class="metric-value">${totalStudents}</div>
+                        <div class="metric-label">
+                            Total Active Enrolled Students
+                        </div>
+
+                        <div class="metric-value">
+                            ${totalStudents}
+                        </div>
                     </div>
+
                     <div class="metric-row">
-                        <div class="metric-label">Monitored Tuition Courses</div>
-                        <div class="metric-value">${totalCourses}</div>
+                        <div class="metric-label">
+                            Monitored Tuition Courses
+                        </div>
+
+                        <div class="metric-value">
+                            ${totalCourses}
+                        </div>
                     </div>
+
                     <div class="metric-row">
-                        <div class="metric-label">Average System Attendance Rate</div>
-                        <div class="metric-value" style="color: #10b981;">${avgAttendanceStr}</div>
+                        <div class="metric-label">
+                            Average System Attendance Rate
+                        </div>
+
+                        <div
+                            class="metric-value"
+                            style="color: #10b981;"
+                        >
+                            ${avgAttendanceStr}
+                        </div>
                     </div>
+
                     <div class="metric-row">
-                        <div class="metric-label">Total Flagged Absences Logged</div>
-                        <div class="metric-value" style="color: #ef4444;">${totalAbsences}</div>
+                        <div class="metric-label">
+                            Total Flagged Absences Logged
+                        </div>
+
+                        <div
+                            class="metric-value"
+                            style="color: #ef4444;"
+                        >
+                            ${totalAbsences}
+                        </div>
                     </div>
+
                 </div>
-                
+
                 <div class="chart-column">
-                    <h2 class="section-title" style="border: none; padding: 0; text-align: center; margin-bottom: 15px;">Attendance Distribution</h2>
-                    
+
+                    <h2
+                        class="section-title"
+                        style="
+                            border:none;
+                            padding:0;
+                            text-align:center;
+                            margin-bottom:15px;
+                        "
+                    >
+                        Attendance Distribution
+                    </h2>
+
                     <div class="chart-wrapper"></div>
-                    
+
                     <div class="chart-legend">
+
                         <div class="legend-item">
                             <span class="legend-color color-present"></span>
-                            <span>Present (${avgAttendance}%)</span>
+                            <span>
+                                Present (${avgAttendance}%)
+                            </span>
                         </div>
+
                         <div class="legend-item">
                             <span class="legend-color color-absent"></span>
-                            <span>Absent (${absentRate}%)</span>
+                            <span>
+                                Absent (${absentRate}%)
+                            </span>
                         </div>
+
                     </div>
+
                 </div>
+
             </div>
 
-            <h2 class="section-title">Comprehensive Attendance Logs Breakdown</h2>
+            <h2 class="section-title">
+                Comprehensive Attendance Logs Breakdown
+            </h2>
+
             <table class="data-table">
+
                 <thead>
+
                     <tr>
                         <th>No.</th>
                         <th>Student Name</th>
@@ -438,80 +858,102 @@ function printReport() {
                         <th>Attendance Rate</th>
                         <th>Status</th>
                     </tr>
+
                 </thead>
+
                 <tbody>
                     ${tableBodyRows}
                 </tbody>
+
             </table>
 
             <div class="remarks-box">
+
                 <h4>System Diagnostic Remarks</h4>
-                <p>This document constitutes an official performance report compiled from active attendance registers tracking student participation scopes. Low performance items should be reviewed immediately by administrative coordinators for corrective actions.</p>
+
+                <p>
+                    This document constitutes an official performance
+                    report compiled from active attendance registers.
+                </p>
+
             </div>
 
             <div class="footer-banner">
-                <div class="footer-left">Generated via My Tuition A+ Attendance Management Framework.</div>
-                <div class="footer-right">Page 1 of 1</div>
+
+                <div class="footer-left">
+                    Generated via My Tuition A+ Attendance Framework.
+                </div>
+
+                <div class="footer-right">
+                    Page 1 of 1
+                </div>
+
             </div>
 
             <script>
-                // Instantly triggers native system printing routines once layout is rendered completely
-                window.onload = function() {
-                    setTimeout(function() {
+
+                window.onload = function () {
+
+                    setTimeout(function () {
                         window.print();
                     }, 300);
+
                 };
-            </script>
+
+            <\/script>
+
         </body>
+
         </html>
+
     `);
 
     printWindow.document.close();
 }
 
-// Basic placeholder for download functionality
+// ======================================
+// DOWNLOAD REPORT
+// ======================================
+
 function downloadReport() {
-    alert("Download triggered. Ensure your PHP generates the necessary file export.");
+    alert("Download triggered. Connect this to PHP export later.");
 }
 
-// Logout handled by link, but function preserved if needed for UI triggers
-function logout() {
-    window.location.href = "dashboard.php?action=logout";
+// ======================================
+// MODAL HELPERS
+// ======================================
+
+function openAddModal() {
+    alert("Add Student feature can be connected to PHP form later.");
 }
 
-function renderAttendance() {
-    const searchInput = document.getElementById("attendanceSearch");
-    const courseFilter = document.getElementById("attendanceCourseFilter");
-    const statusFilter = document.getElementById("attendanceStatusFilter");
-
-    const search = searchInput ? searchInput.value.toLowerCase().trim() : "";
-    const selectedCourse = courseFilter ? courseFilter.value : "all";
-    const selectedStatus = statusFilter ? statusFilter.value : "all";
-
-    const rows = visibleAttendanceRecords().filter(record => {
-        const student = getStudent(record.studentId);
-        const teacher = teachers[student.teacherId];
-        const searchable = `${student.name} ${student.className} ${student.course} ${teacher.name}`.toLowerCase();
-        const matchSearch = searchable.includes(search);
-        const matchCourse = selectedCourse === "all" || student.course === selectedCourse;
-        const matchStatus = selectedStatus === "all" || record.status === selectedStatus;
-
-        return matchSearch && matchCourse && matchStatus;
-    }).map(record => {
-        const student = getStudent(record.studentId);
-        const teacher = teachers[student.teacherId];
-
-        return `
-            <tr>
-                <td>${student.name}</td>
-                <td>${student.className}</td>
-                <td>${student.course}</td>
-                <td>${teacher.name}</td>
-                <td>${record.date}</td>
-                <td><span class="status ${record.status === "Present" ? "present" : "absent"}">${record.status}</span></td>
-            </tr>
-        `;
-    }).join("");
-
-    document.getElementById("attendance-table-body").innerHTML = rows || emptyRow(6, "No attendance records found for this search.");
+function openAttendanceForm() {
+    alert("Attendance form feature can be connected to database later.");
 }
+
+function closeModal() {
+
+    const modal = document.getElementById("globalModal");
+
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+
+// ======================================
+// INITIALIZATION
+// ======================================
+
+function renderAll() {
+
+    renderStudents();
+    renderAttendance();
+    renderCourses();
+    renderSchedule();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    renderAll();
+
+});
