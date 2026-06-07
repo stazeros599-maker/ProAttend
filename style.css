@@ -1,6 +1,6 @@
-/* ==========================================================================
-   1. GLOBAL RESET & BASE SETUP
-   ========================================================================== */
+/* =========================
+   GLOBAL RESET
+========================= */
 * {
     margin: 0;
     padding: 0;
@@ -18,7 +18,9 @@ body {
         linear-gradient(135deg, #020617, #0f172a 45%, #111827);
 }
 
-/* Background Glowing Shapes */
+/* =========================
+   BACKGROUND DECORATION
+========================= */
 .background-shape {
     position: fixed;
     border-radius: 50%;
@@ -43,9 +45,9 @@ body {
     bottom: -120px;
 }
 
-/* ==========================================================================
-   2. AUTHENTICATION / LOGIN LAYOUT
-   ========================================================================== */
+/* =========================
+   LOGIN PAGE
+========================= */
 .login-page {
     display: flex;
     align-items: center;
@@ -91,7 +93,6 @@ body {
 
 .brand-icon i {
     font-size: 32px;
-    color: white;
 }
 
 .brand-area h1 {
@@ -160,6 +161,29 @@ body {
     background: white;
 }
 
+.primary-btn {
+    height: 52px;
+    border: none;
+    border-radius: 15px;
+    margin-top: 8px;
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: 0.3s ease;
+    box-shadow: 0 15px 35px rgba(37, 99, 235, 0.35);
+}
+
+.primary-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 45px rgba(37, 99, 235, 0.55);
+}
+
 .login-note {
     margin-top: 24px;
     text-align: center;
@@ -168,9 +192,9 @@ body {
     line-height: 1.6;
 }
 
-/* ==========================================================================
-   3. CORE APPLICATION LAYOUT (DASHBOARD FRAMEWORK)
-   ========================================================================== */
+/* =========================
+   DASHBOARD LAYOUT
+========================= */
 .dashboard-page {
     display: flex;
 }
@@ -190,7 +214,6 @@ body {
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
 }
 
 .sidebar-logo {
@@ -208,7 +231,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
 }
 
 .sidebar-logo h2 {
@@ -283,7 +305,6 @@ body {
     width: calc(100% - 310px);
     margin-left: 310px;
     padding: 30px;
-    transition: all 0.3s ease;
 }
 
 .topbar {
@@ -334,12 +355,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
 }
 
-/* ==========================================================================
-   4. CONTENT CARDS & SECTION SWITCHES
-   ========================================================================== */
+/* =========================
+   SECTIONS
+========================= */
 .section {
     display: none;
 }
@@ -366,37 +386,9 @@ body {
     line-height: 1.6;
 }
 
-.content-card {
-    padding: 24px;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.09);
-    border: 1px solid rgba(255, 255, 255, 0.13);
-    backdrop-filter: blur(20px);
-    box-shadow: 0 25px 55px rgba(0, 0, 0, 0.22);
-    margin-bottom: 22px;
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-}
-
-.card-header h3 {
-    font-size: 20px;
-}
-
-.card-header span {
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: rgba(59, 130, 246, 0.18);
-    color: #93c5fd;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-/* Dashboard Information Scopes */
+/* =========================
+   CARDS
+========================= */
 .teacher-scope-card {
     padding: 24px;
     border-radius: 26px;
@@ -435,7 +427,6 @@ body {
     font-weight: 800;
 }
 
-/* Analytics Stats Grid */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -473,10 +464,25 @@ body {
     font-size: 22px;
 }
 
-.blue { background: rgba(59, 130, 246, 0.18); color: #60a5fa; }
-.purple { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
-.green { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
-.orange { background: rgba(249, 115, 22, 0.18); color: #fb923c; }
+.blue {
+    background: rgba(59, 130, 246, 0.18);
+    color: #60a5fa;
+}
+
+.purple {
+    background: rgba(168, 85, 247, 0.18);
+    color: #c084fc;
+}
+
+.green {
+    background: rgba(34, 197, 94, 0.18);
+    color: #4ade80;
+}
+
+.orange {
+    background: rgba(249, 115, 22, 0.18);
+    color: #fb923c;
+}
 
 .stat-card p {
     color: #94a3b8;
@@ -494,9 +500,38 @@ body {
     gap: 22px;
 }
 
-/* ==========================================================================
-   5. UTILITIES, CONTROLS & FORMS
-   ========================================================================== */
+.content-card {
+    padding: 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 25px 55px rgba(0, 0, 0, 0.22);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.card-header h3 {
+    font-size: 20px;
+}
+
+.card-header span {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.18);
+    color: #93c5fd;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* =========================
+   FILTERS
+========================= */
 .filter-card {
     margin-bottom: 20px;
 }
@@ -556,87 +591,15 @@ body {
     background: white;
 }
 
-.input-group-dashboard label {
-    display: block;
-    margin-bottom: 8px;
-    color: #cbd5e1;
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.input-group-dashboard select {
-    width: 100%;
-    height: 48px;
-    border: none;
-    outline: none;
-    border-radius: 14px;
-    padding: 0 14px;
-    color: white;
-    background: rgba(255, 255, 255, 0.09);
-    border: 1px solid rgba(255, 255, 255, 0.13);
-}
-
-.input-group-dashboard select option {
-    color: #111827;
-    background: white;
-}
-
-/* Buttons */
-.primary-btn, .action-btn {
-    height: 52px;
-    border: none;
-    border-radius: 15px;
-    background: linear-gradient(135deg, #2563eb, #06b6d4);
-    color: white;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 0 24px;
-    transition: 0.3s ease;
-    box-shadow: 0 15px 35px rgba(37, 99, 235, 0.35);
-}
-
-.primary-btn:hover, .action-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 20px 45px rgba(37, 99, 235, 0.55);
-}
-
 .ghost-btn {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.13);
     box-shadow: none;
 }
 
-.small-btn {
-    border: none;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: rgba(59, 130, 246, 0.18);
-    color: #93c5fd;
-    font-weight: 700;
-    cursor: pointer;
-    margin-right: 6px;
-    transition: 0.2s ease;
-}
-
-.small-btn.danger {
-    background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
-}
-
-/* ==========================================================================
-   6. TABLES & BADGES
-   ========================================================================== */
-.table-container {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
+/* =========================
+   TABLE
+========================= */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -668,18 +631,68 @@ tr:hover td {
     padding: 28px !important;
 }
 
-/* Badges */
+/* =========================
+   BUTTONS
+========================= */
+.action-btn {
+    border: none;
+    padding: 13px 18px;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 35px rgba(37, 99, 235, 0.35);
+}
+
+.small-btn {
+    border: none;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(59, 130, 246, 0.18);
+    color: #93c5fd;
+    font-weight: 700;
+    cursor: pointer;
+    margin-right: 6px;
+}
+
+.small-btn.danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+}
+
+/* =========================
+   STATUS BADGES
+========================= */
 .status {
     padding: 7px 12px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 800;
-    display: inline-block;
 }
 
-.present { background: rgba(34, 197, 94, 0.16); color: #86efac; }
-.absent { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+.present {
+    background: rgba(34, 197, 94, 0.16);
+    color: #86efac;
+}
 
+.absent {
+    background: rgba(239, 68, 68, 0.16);
+    color: #fca5a5;
+}
+
+/* =========================
+   SUMMARY
+========================= */
 .summary-list {
     display: flex;
     flex-direction: column;
@@ -702,6 +715,9 @@ tr:hover td {
     font-size: 16px;
 }
 
+/* =========================
+   TEACHER NOTE
+========================= */
 .teacher-note {
     margin-top: 18px;
     padding: 14px 16px;
@@ -712,9 +728,9 @@ tr:hover td {
     line-height: 1.6;
 }
 
-/* ==========================================================================
-   7. GRAPHIC SCHEDULE TIMELINES
-   ========================================================================== */
+/* =========================
+   GRAPHIC SCHEDULE
+========================= */
 .schedule-legend {
     display: flex;
     flex-direction: row;
@@ -738,9 +754,17 @@ tr:hover td {
     border-radius: 50%;
 }
 
-.blue-dot { background: #60a5fa; }
-.green-dot { background: #4ade80; }
-.purple-dot { background: #c084fc; }
+.blue-dot {
+    background: #60a5fa;
+}
+
+.green-dot {
+    background: #4ade80;
+}
+
+.purple-dot {
+    background: #c084fc;
+}
 
 .schedule-board {
     display: grid;
@@ -797,12 +821,29 @@ tr:hover td {
     height: 100%;
 }
 
-.schedule-event.math { background: rgba(59, 130, 246, 0.16); }
-.schedule-event.math::before { background: #60a5fa; }
-.schedule-event.science { background: rgba(34, 197, 94, 0.14); }
-.schedule-event.science::before { background: #4ade80; }
-.schedule-event.english { background: rgba(168, 85, 247, 0.16); }
-.schedule-event.english::before { background: #c084fc; }
+.schedule-event.math {
+    background: rgba(59, 130, 246, 0.16);
+}
+
+.schedule-event.math::before {
+    background: #60a5fa;
+}
+
+.schedule-event.science {
+    background: rgba(34, 197, 94, 0.14);
+}
+
+.schedule-event.science::before {
+    background: #4ade80;
+}
+
+.schedule-event.english {
+    background: rgba(168, 85, 247, 0.16);
+}
+
+.schedule-event.english::before {
+    background: #c084fc;
+}
 
 .schedule-time {
     color: #bfdbfe;
@@ -840,9 +881,13 @@ tr:hover td {
     border: 1px dashed rgba(255, 255, 255, 0.12);
 }
 
-/* ==========================================================================
-   8. WHITE REPORT INVOICE/PAPER STYLING
-   ========================================================================== */
+.schedule-table-card {
+    margin-top: 20px;
+}
+
+/* =========================
+   REPORT PAGE
+========================= */
 .report-control-card {
     margin-bottom: 24px;
 }
@@ -856,6 +901,31 @@ tr:hover td {
 
 .report-controls.four-controls {
     grid-template-columns: 1.1fr 0.9fr 0.8fr auto;
+}
+
+.input-group-dashboard label {
+    display: block;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.input-group-dashboard select {
+    width: 100%;
+    height: 48px;
+    border: none;
+    outline: none;
+    border-radius: 14px;
+    padding: 0 14px;
+    color: white;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+}
+
+.input-group-dashboard select option {
+    color: #111827;
+    background: white;
 }
 
 .report-preview-card {
@@ -966,7 +1036,7 @@ tr:hover td {
 
 .report-table th {
     background: #0f172a;
-    color: white !important;
+    color: white;
     padding: 13px;
     font-size: 13px;
     text-align: left;
@@ -1021,12 +1091,19 @@ tr:hover td {
     background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-.report-paper .status.present { background: #dcfce7; color: #166534; }
-.report-paper .status.absent { background: #fee2e2; color: #991b1b; }
+.report-paper .status.present {
+    background: #dcfce7;
+    color: #166534;
+}
 
-/* ==========================================================================
-   9. PRINT SYSTEM OVERRIDES
-   ========================================================================== */
+.report-paper .status.absent {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* =========================
+   PRINT DESIGN
+========================= */
 .print-body {
     background: white;
     color: #111827;
@@ -1039,95 +1116,308 @@ tr:hover td {
 }
 
 @media print {
-    body { background: white; }
-    .sidebar, .topbar, .report-control-card, .report-button-area, .background-shape {
+    body {
+        background: white;
+    }
+
+    .sidebar,
+    .topbar,
+    .report-control-card,
+    .report-button-area,
+    .background-shape {
         display: none !important;
     }
+
     .main-content {
         margin: 0;
         width: 100%;
         padding: 0;
     }
+
     .content-card {
         box-shadow: none;
         border: none;
         background: white;
         padding: 0;
     }
+
     .report-paper {
         box-shadow: none;
         border-radius: 0;
         padding: 20px;
     }
+
     .report-table th {
         background: #111827 !important;
         color: white !important;
     }
 }
 
-/* ==========================================================================
-   10. ANIMATIONS
-   ========================================================================== */
+/* =========================
+   ANIMATIONS
+========================= */
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(35px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(35px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
 
-/* ==========================================================================
-   11. RESPONSIVE QUERY LAYER (Computers, Tablets & Mobile Devices)
-   ========================================================================== */
-@media (max-width: 1200px) {
-    .main-content { padding: 24px; }
-    .schedule-board { grid-template-columns: repeat(2, 1fr); }
-    .stats-grid, .report-summary-box {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 16px;
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-@media (max-width: 992px) {
-    .sidebar { width: 220px; padding: 20px 16px; }
-    .main-content { width: calc(100% - 220px); margin-left: 220px; }
-    .dashboard-grid { grid-template-columns: 1fr !important; gap: 20px; }
+.page-exit {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: 0.5s ease;
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+========================= */
+@media (max-width: 1200px) {
+    .schedule-board {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 1100px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-grid,
+    .report-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1000px) {
+    .report-controls,
+    .report-controls.four-controls,
+    .filter-row.three-columns {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .report-info-grid,
+    .report-summary-box {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (max-width: 850px) {
-    /* Auto-collapse to mini icon-only layout on smaller computer splits/tablets */
-    .sidebar { width: 65px !important; padding: 15px 4px !important; align-items: center !important; }
-    .sidebar-logo h2, .sidebar-logo p, .sidebar-menu li span, .logout-btn span {
-        display: none !important;
+    .sidebar {
+        width: 90px;
+        padding: 20px 12px;
     }
-    .sidebar-logo { justify-content: center !important; width: 100% !important; margin-bottom: 20px !important; }
-    .sidebar-menu li { justify-content: center !important; padding: 0 !important; width: 44px !important; height: 44px !important; border-radius: 10px !important; display: flex !important; align-items: center !important; }
-    .sidebar-menu li i, .logo-icon { margin-right: 0 !important; }
-    .logout-btn { justify-content: center !important; align-items: center !important; width: 44px !important; height: 44px !important; padding: 0 !important; border-radius: 10px !important; display: flex !important; }
-    
-    .main-content { width: calc(100% - 65px) !important; margin-left: 65px !important; padding: 15px !important; }
-    .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
-    .schedule-board { grid-template-columns: 1fr; }
-    .report-controls, .report-controls.four-controls, .filter-row.three-columns { grid-template-columns: 1fr 1fr; }
-    .report-info-grid, .report-summary-box { grid-template-columns: repeat(2, 1fr); }
+
+    .sidebar-logo div:last-child,
+    .sidebar-menu li span,
+    .logout-btn {
+        display: none;
+    }
+
+    .sidebar-menu li {
+        justify-content: center;
+    }
+
+    .main-content {
+        width: calc(100% - 120px);
+        margin-left: 120px;
+    }
+
+    .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .schedule-board {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 650px) {
-    .report-controls, .report-controls.four-controls, .report-info-grid, .report-summary-box, .filter-row, .filter-row.three-columns {
-        grid-template-columns: 1fr !important;
+    .report-controls,
+    .report-controls.four-controls,
+    .report-info-grid,
+    .report-summary-box,
+    .filter-row,
+    .filter-row.three-columns {
+        grid-template-columns: 1fr;
     }
-    .report-title-area, .report-footer, .report-button-area, .teacher-scope-card {
+
+    .report-title-area,
+    .report-footer,
+    .report-button-area,
+    .teacher-scope-card {
         flex-direction: column;
         align-items: flex-start;
     }
-    .report-paper { padding: 22px; }
+
+    .report-paper {
+        padding: 22px;
+        overflow-x: auto;
+    }
 }
 
-@media (max-width: 576px) {
-    .login-card { width: 100%; padding: 32px 24px; }
-    .stats-grid { grid-template-columns: 1fr !important; }
-    .section-header { flex-direction: column; align-items: flex-start; gap: 14px; }
-    table { font-size: 13px; }
+@media (max-width: 600px) {
+    .login-card {
+        width: 100%;
+        padding: 32px 24px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .main-content {
+        padding: 20px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    table {
+        font-size: 13px;
+    }
+}
+
+
+/* =========================
+   MODAL FOR ADD / MARK FORMS
+========================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    padding: 24px;
+    background: rgba(2, 6, 23, 0.72);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.modal-card {
+    width: min(760px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 26px;
+    border-radius: 26px;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 35px 90px rgba(0, 0, 0, 0.45);
+    animation: slideUp 0.35s ease forwards;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.modal-header h2 {
+    font-size: 26px;
+    letter-spacing: -0.5px;
+}
+
+.modal-close {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.modal-close:hover {
+    background: rgba(239, 68, 68, 0.18);
+    color: #fecaca;
+}
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+}
+
+.modal-grid .input-group-dashboard input,
+.modal-grid .input-group-dashboard select {
+    width: 100%;
+    height: 50px;
+    border: none;
+    outline: none;
+    border-radius: 16px;
+    padding: 0 14px;
+    color: white;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+}
+
+.modal-grid .input-group-dashboard input::placeholder {
+    color: #94a3b8;
+}
+
+.modal-grid .input-group-dashboard select option {
+    color: #111827;
+    background: white;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.status.neutral,
+.neutral {
+    background: rgba(148, 163, 184, 0.18);
+    color: #cbd5e1;
+}
+
+.schedule-event.general {
+    background: rgba(14, 165, 233, 0.14);
+}
+
+.schedule-event.general::before {
+    background: #38bdf8;
+}
+
+@media (max-width: 650px) {
+    .modal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-card {
+        padding: 22px;
+    }
 }
