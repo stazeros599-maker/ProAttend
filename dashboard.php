@@ -30,6 +30,67 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 $role = $_SESSION['role'];
 $teacher_id = $_SESSION['teacher_id'] ?? '';
 $display_name = $_SESSION['display_name'];
+
+//For the stat card
+// 1. Total Students
+$res_stud = $conn->query("SELECT COUNT(*) as total FROM student");
+$student_count = $res_stud->fetch_assoc()['total'];
+
+// 2. Total Teachers (Tutors)
+$res_teach = $conn->query("SELECT COUNT(*) as total FROM teacher");
+$teacher_count = $res_teach->fetch_assoc()['total'];
+
+// 3. Total Classes (Active Courses)
+$res_class = $conn->query("SELECT COUNT(*) as total FROM class");
+$class_count = $res_class->fetch_assoc()['total'];
+
+// 4. Attendance Today (%) 
+// This query calculates: (Present / Total) * 100
+$res_att = $conn->query("SELECT 
+    (SUM(CASE WHEN Status = 'Present' THEN 1 ELSE 0 END) / COUNT(*)) * 100 as percentage 
+    FROM attendance WHERE Date = CURDATE()");
+$attendance_percent = round($res_att->fetch_assoc()['percentage'] ?? 0);
+
+$sql = "SELECT COUNT(*) as total_present FROM attendance WHERE Status = 'Present' AND Date = CURDATE()";
+$result = $conn->query($sql);
+$data = $result->fetch_assoc();
+
+// 2. You need a query that counts ALL rows for today
+$sql_all = "SELECT COUNT(*) as total_students FROM attendance WHERE Date = CURDATE()";
+$result_all = $conn->query($sql_all);
+$data_all = $result_all->fetch_assoc();
+
+// 3. Calculate percentage
+$percentage = ($data_all['total_students'] > 0) 
+    ? round(($data['total_present'] / $data_all['total_students']) * 100) 
+    : 0;
+
+echo $percentage . "%";
+
+// For the attendance table
+$query = "SELECT s.Student_Name, c.Subject_Name, t.Teacher_Name, a.Status 
+          FROM attendance a
+          JOIN student s ON a.Student_ID = s.Student_ID
+          JOIN class c ON a.Class_ID = c.Class_ID
+          JOIN teacher t ON c.User_ID = t.User_ID";
+
+// Apply the filter only if the role is 'teacher'
+if ($role === 'teacher' && !empty($teacher_id)) {
+    $query .= " WHERE t.User_ID = " . (int)$teacher_id;
+}
+$query .= " ORDER BY a.Date DESC LIMIT 10";
+$result = $conn->query($query);
+
+// For the system summary
+$student_count = $conn->query("SELECT COUNT(*) as total FROM student")->fetch_assoc()['total'];
+$class_count = $conn->query("SELECT COUNT(*) as total FROM class")->fetch_assoc()['total'];
+$teacher_count = $conn->query("SELECT COUNT(*) as total FROM teacher")->fetch_assoc()['total'];
+
+// For the Student Management
+$student_query = "SELECT s.Student_ID, s.Student_Name, s.StudPhone_Number, c.Subject_Name 
+                  FROM student s
+                  LEFT JOIN class c ON s.Student_ID = c.Class_ID"; // Adjust JOIN as needed for your schema
+$students = $conn->query($student_query);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -107,15 +168,111 @@ $display_name = $_SESSION['display_name'];
         </header>
 
         <section id="dashboard" class="section active">
-            <div class="teacher-scope-card">
-                <div>
-                    <span class="scope-badge"><?php echo htmlspecialchars(ucfirst($role)); ?> View</span>
-                    <h2>Full System Overview</h2>
-                    <p>Welcome, <?php echo htmlspecialchars($display_name); ?>. Manage your teaching operations here.</p>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">
+                        <i class="fa-solid fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <p>Total Students</p>
+                        <h2><?php echo $student_count; ?></h2>                
+                    </div>
                 </div>
-                <i class="fa-solid fa-shield-halved"></i>
+
+                <div class="stat-card">
+                    <div class="stat-icon purple">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <div>
+                        <p>Total Tutors</p>
+                        <h2><?php echo $teacher_count; ?></h2> 
+                    </div> 
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon green">
+                        <i class="fa-solid fa-book"></i>
+                    </div>
+                    <div>
+                        <p>Active Courses</p>
+                        <h2><?php echo $class_count; ?></h2>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon orange">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div>
+                        <p>Attendance Today</p>
+                        <h2><?php echo $attendance_percent; ?>%</h2>
+                    </div>
+                </div>
             </div>
-            <div class="stats-grid" id="stats-grid"></div>
+
+            <div class="dashboard-grid">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3>Recent Attendance</h3>
+                        <span id="recent-attendance-label">Today</span>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Course</th>
+                                <th>Teacher</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-attendance-body">
+                            <?php 
+                                if ($result && $result->num_rows > 0) {
+                                    while ($row = $result->fetch_assoc()) { 
+                                        $statusVal = htmlspecialchars($row['Status']);
+                                        $statusClass = (strtolower($statusVal) === 'present') ? 'present' : 'absent';
+                            ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($row['Student_Name']); ?></td>
+                                            <td><?php echo htmlspecialchars($row['Subject_Name']); ?></td>
+                                            <td><?php echo htmlspecialchars($row['Teacher_Name']); ?></td>
+                                            <td>
+                                                <span class="status <?php echo $statusClass; ?>"><?php echo htmlspecialchars($row['Status']); ?></span>
+                                            </td>
+                                        </tr>
+                            <?php 
+                                    } 
+                                } else {
+                                    echo "<tr><td colspan='4'>No attendance records found.</td></tr>";
+                                }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3>System Summary</h3>
+                        <span>Current Scope</span>
+                    </div>
+
+                    <div class="summary-list" id="summary-list">
+                        <div class="summary-item">
+                            <span>Total Students</span>
+                            <strong><?php echo $student_count; ?></strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Active Classes</span>
+                            <strong><?php echo $class_count; ?></strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>Registered Teachers</span>
+                            <strong><?php echo $teacher_count; ?></strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <section id="students" class="section">
@@ -124,9 +281,24 @@ $display_name = $_SESSION['display_name'];
                     <h2>Student Management</h2>
                     <p>Manage student records, classes, and contact information.</p>
                 </div>
-                <button class="action-btn" onclick="demoAlert('Add Student')">
-                    <i class="fa-solid fa-plus"></i> Add Student
-                </button>
+                <?php if ($_SESSION['role'] === 'ADMIN'): ?>
+                    <button class="action-btn" onclick="openAddModal()">
+                        <i class="fa-solid fa-plus"></i> Add Student
+                    </button>
+                <?php endif; ?>
+            </div>
+
+            <div class="content-card filter-card">
+                <div class="filter-row">
+                    <div class="search-box-dashboard">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input id="studentSearch" oninput="renderStudents()" type="text" placeholder="Search student name, phone, class, or course...">
+                    </div>
+                    <button class="action-btn ghost-btn" onclick="clearStudentSearch()">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        Reset
+                    </button>
+                </div>
             </div>
 
             <div class="content-card">
@@ -141,7 +313,23 @@ $display_name = $_SESSION['display_name'];
                         </tr>
                     </thead>
                     <tbody id="student-table-body">
-                        </tbody>
+                        <?php while ($row = $students->fetch_assoc()): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($row['Student_Name']); ?></td>
+                                <td><?php echo htmlspecialchars($row['Subject_Name'] ?? 'N/A'); ?></td>
+                                <td><?php echo htmlspecialchars($row['StudPhone_Number']); ?></td>
+                                <td>
+                                    <?php if ($_SESSION['role'] === 'ADMIN'): ?>
+                                        <a href="delete_student.php?id=<?php echo $row['Student_ID']; ?>" class="action-btn delete-btn">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <span>View Only</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
                 </table>
             </div>
         </section>
@@ -152,7 +340,6 @@ $display_name = $_SESSION['display_name'];
                     <h2>Course Management</h2>
                     <p id="course-section-desc">View and manage tuition courses.</p>
                 </div>
-
                 <button class="action-btn admin-only" onclick="demoAlert('Add Course')">
                     <i class="fa-solid fa-plus"></i>
                     Add Course
@@ -174,7 +361,6 @@ $display_name = $_SESSION['display_name'];
                     </thead>
                     <tbody id="course-table-body"></tbody>
                 </table>
-
                 <p class="teacher-note" id="course-note"></p>
             </div>
         </section>
@@ -185,7 +371,6 @@ $display_name = $_SESSION['display_name'];
                     <h2>Attendance Management</h2>
                     <p id="attendance-section-desc">Search and mark attendance for students in the selected teacher scope.</p>
                 </div>
-
                 <button class="action-btn" onclick="demoAlert('Mark Attendance')">
                     <i class="fa-solid fa-clipboard-check"></i>
                     Mark Attendance
@@ -198,9 +383,7 @@ $display_name = $_SESSION['display_name'];
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input id="attendanceSearch" oninput="renderAttendance()" type="text" placeholder="Search only students under this teacher...">
                     </div>
-
                     <select id="attendanceCourseFilter" onchange="renderAttendance()" class="dashboard-select"></select>
-
                     <select id="attendanceStatusFilter" onchange="renderAttendance()" class="dashboard-select">
                         <option value="all">All Attendance Status</option>
                         <option value="Present">Present</option>
@@ -223,7 +406,6 @@ $display_name = $_SESSION['display_name'];
                     </thead>
                     <tbody id="attendance-table-body"></tbody>
                 </table>
-
                 <p class="teacher-note" id="attendance-note"></p>
             </div>
         </section>
@@ -258,7 +440,6 @@ $display_name = $_SESSION['display_name'];
                     <h3>Schedule Details</h3>
                     <span id="schedule-table-label">Current Scope</span>
                 </div>
-
                 <table>
                     <thead>
                         <tr>
@@ -272,7 +453,6 @@ $display_name = $_SESSION['display_name'];
                     </thead>
                     <tbody id="schedule-table-body"></tbody>
                 </table>
-
                 <p class="teacher-note" id="schedule-note"></p>
             </div>
         </section>
@@ -338,7 +518,6 @@ $display_name = $_SESSION['display_name'];
                             <h1>My Tuition A+</h1>
                             <p>Attendance Management System</p>
                         </div>
-
                         <div class="report-badge" id="reportScopeBadge">
                             Admin Report
                         </div>
@@ -351,17 +530,14 @@ $display_name = $_SESSION['display_name'];
                             <p>Report Type</p>
                             <h3 id="previewReportType">Monthly Attendance Report</h3>
                         </div>
-
                         <div>
                             <p>Month</p>
                             <h3 id="previewMonth">May</h3>
                         </div>
-
                         <div>
                             <p>Year</p>
                             <h3 id="previewYear">2026</h3>
                         </div>
-
                         <div>
                             <p>Generated By</p>
                             <h3 id="previewRole">Admin</h3>
@@ -408,15 +584,13 @@ $display_name = $_SESSION['display_name'];
                     <i class="fa-solid fa-download"></i>
                     Download Report
                 </button>
-
                 <button class="action-btn print-btn" onclick="printReport()">
                     <i class="fa-solid fa-print"></i>
                     Print Report
                 </button>
             </div>
         </section>
-
-        </main>
+    </main>
 
     <script src="script.js"></script>
     <script>
