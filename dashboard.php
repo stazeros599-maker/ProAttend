@@ -12,6 +12,141 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // ===================================
+// HANDLE POST REQUESTS (CRUD OPERATIONS)
+// ===================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    $action = $_POST['action'] ?? '';
+    $role = $_SESSION['role'] ?? '';
+    $teacher_id = $_SESSION['teacher_id'] ?? null;
+    
+    // ADD STUDENT (Admin only)
+    if ($action === 'add_student' && $role === 'admin') {
+        $name = trim($_POST['name']);
+        $class = trim($_POST['class']);
+        $phone = trim($_POST['phone']);
+        $status = $_POST['status'];
+        $class_id = intval($_POST['class_id']);
+        
+        // Get teacher ID from class
+        $class_query = $conn->prepare("SELECT User_ID FROM class WHERE Class_ID = ?");
+        $class_query->bind_param("i", $class_id);
+        $class_query->execute();
+        $class_result = $class_query->get_result()->fetch_assoc();
+        
+        if ($class_result) {
+            $stmt = $conn->prepare("INSERT INTO student (Student_Name, StudPhone_Number, Status) VALUES (?, ?, ?)");
+            $stmt->bind_param("sss", $name, $phone, $status);
+            
+            if ($stmt->execute()) {
+                $student_id = $conn->insert_id;
+                
+                // Link student to class via attendance table
+                $att_stmt = $conn->prepare("INSERT INTO attendance (Student_ID, Class_ID, Date, Status) VALUES (?, ?, CURDATE(), 'Absent')");
+                $att_stmt->bind_param("ii", $student_id, $class_id);
+                $att_stmt->execute();
+                
+                echo json_encode(['success' => true, 'message' => 'Student added successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error adding student']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid class selected']);
+        }
+        exit();
+    }
+    
+    // ADD COURSE (Admin only)
+    if ($action === 'add_course' && $role === 'admin') {
+        $subject_name = trim($_POST['subject_name']);
+        $subject_code = trim($_POST['subject_code']);
+        $teacher_user_id = intval($_POST['teacher_id']);
+        $type = trim($_POST['type']);
+        $venue = trim($_POST['venue']);
+        $day = $_POST['day'];
+        $start_time = $_POST['start_time'];
+        $end_time = $_POST['end_time'];
+        
+        $stmt = $conn->prepare("INSERT INTO class (Subject_Name, Subject_Code, User_ID, Type, Venue) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssiss", $subject_name, $subject_code, $teacher_user_id, $type, $venue);
+        
+        if ($stmt->execute()) {
+            $class_id = $conn->insert_id;
+            
+            // Add schedule
+            $sched_stmt = $conn->prepare("INSERT INTO schedule (Class_ID, Day, Start_Time, End_Time) VALUES (?, ?, ?, ?)");
+            $sched_stmt->bind_param("isss", $class_id, $day, $start_time, $end_time);
+            $sched_stmt->execute();
+            
+            echo json_encode(['success' => true, 'message' => 'Course added successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error adding course']);
+        }
+        exit();
+    }
+    
+    // MARK ATTENDANCE (Teacher only)
+    if ($action === 'mark_attendance' && $role === 'teacher') {
+        $student_id = intval($_POST['student_id']);
+        $class_id = intval($_POST['class_id']);
+        $date = $_POST['date'];
+        $status = $_POST['status'];
+        
+        // Verify teacher owns this class
+        $verify_stmt = $conn->prepare("SELECT Class_ID FROM class WHERE Class_ID = ? AND User_ID = ?");
+        $verify_stmt->bind_param("ii", $class_id, $teacher_id);
+        $verify_stmt->execute();
+        
+        if ($verify_stmt->get_result()->num_rows > 0) {
+            // Check if attendance already exists
+            $check_stmt = $conn->prepare("SELECT Attendance_ID FROM attendance WHERE Student_ID = ? AND Class_ID = ? AND Date = ?");
+            $check_stmt->bind_param("iis", $student_id, $class_id, $date);
+            $check_stmt->execute();
+            $existing = $check_stmt->get_result()->fetch_assoc();
+            
+            if ($existing) {
+                // Update existing
+                $update_stmt = $conn->prepare("UPDATE attendance SET Status = ? WHERE Attendance_ID = ?");
+                $update_stmt->bind_param("si", $status, $existing['Attendance_ID']);
+                $update_stmt->execute();
+                echo json_encode(['success' => true, 'message' => 'Attendance updated successfully']);
+            } else {
+                // Insert new
+                $insert_stmt = $conn->prepare("INSERT INTO attendance (Student_ID, Class_ID, Date, Status) VALUES (?, ?, ?, ?)");
+                $insert_stmt->bind_param("iiss", $student_id, $class_id, $date, $status);
+                $insert_stmt->execute();
+                echo json_encode(['success' => true, 'message' => 'Attendance marked successfully']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized: You can only mark attendance for your own classes']);
+        }
+        exit();
+    }
+    
+    // DELETE STUDENT (Admin only)
+    if ($action === 'delete_student' && $role === 'admin') {
+        $student_id = intval($_POST['student_id']);
+        
+        // Delete attendance records first
+        $del_att = $conn->prepare("DELETE FROM attendance WHERE Student_ID = ?");
+        $del_att->bind_param("i", $student_id);
+        $del_att->execute();
+        
+        // Delete student
+        $del_student = $conn->prepare("DELETE FROM student WHERE Student_ID = ?");
+        $del_student->bind_param("i", $student_id);
+        
+        if ($del_student->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Student deleted successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error deleting student']);
+        }
+        exit();
+    }
+}
+
+// ===================================
 // LOGOUT
 // ===================================
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
@@ -31,24 +166,17 @@ $display_name = $_SESSION['display_name'] ?? 'User';
 // FETCH STUDENTS
 // ===================================
 $student_data = [];
+$student_query = "SELECT s.Student_ID, s.Student_Name, s.StudPhone_Number, a.Class_ID, c.Subject_Name, c.Subject_Code
+                  FROM student s
+                  LEFT JOIN attendance a ON s.Student_ID = a.Student_ID
+                  LEFT JOIN class c ON a.Class_ID = c.Class_ID";
 
-$student_fetch_query = "
-    SELECT 
-        s.Student_ID,
-        s.Student_Name,
-        s.StudPhone_Number,
-        c.Subject_Name,
-        c.Subject_Code
-    FROM student s
+if ($role === 'teacher' && !empty($teacher_id)) {
+    $student_query .= " WHERE c.User_ID = " . (int)$teacher_id;
+}
 
-    LEFT JOIN attendance a
-        ON s.Student_ID = a.Student_ID
-
-    LEFT JOIN class c
-        ON a.Class_ID = c.Class_ID
-";
-
-$student_result = $conn->query($student_fetch_query);
+$student_query .= " ORDER BY s.Student_Name ASC";
+$student_result = $conn->query($student_query);
 
 if ($student_result) {
     while ($row = $student_result->fetch_assoc()) {
@@ -59,20 +187,15 @@ if ($student_result) {
 // ===================================
 // DASHBOARD STATISTICS
 // ===================================
-
-// Total Students
 $student_count_query = $conn->query("SELECT COUNT(*) as total FROM student");
 $student_count = $student_count_query->fetch_assoc()['total'] ?? 0;
 
-// Total Teachers
 $teacher_count_query = $conn->query("SELECT COUNT(*) as total FROM teacher");
 $teacher_count = $teacher_count_query->fetch_assoc()['total'] ?? 0;
 
-// Total Classes
 $class_count_query = $conn->query("SELECT COUNT(*) as total FROM class");
 $class_count = $class_count_query->fetch_assoc()['total'] ?? 0;
 
-// Attendance Percentage
 $attendance_query = $conn->query("
     SELECT 
         CASE 
@@ -86,7 +209,6 @@ $attendance_query = $conn->query("
 ");
 
 $attendance_percent = 0;
-
 if ($attendance_query) {
     $attendance_percent = $attendance_query->fetch_assoc()['percentage'] ?? 0;
 }
@@ -94,7 +216,6 @@ if ($attendance_query) {
 // ===================================
 // RECENT ATTENDANCE
 // ===================================
-
 $attendance_table_query = "
     SELECT 
         s.Student_Name,
@@ -103,52 +224,72 @@ $attendance_table_query = "
         a.Status,
         a.Date
     FROM attendance a
-    JOIN student s 
-        ON a.Student_ID = s.Student_ID
-    JOIN class c 
-        ON a.Class_ID = c.Class_ID
-    JOIN teacher t 
-        ON c.User_ID = t.User_ID
+    JOIN student s ON a.Student_ID = s.Student_ID
+    JOIN class c ON a.Class_ID = c.Class_ID
+    JOIN teacher t ON c.User_ID = t.User_ID
 ";
 
 if ($role === 'teacher' && !empty($teacher_id)) {
     $attendance_table_query .= " WHERE t.User_ID = " . (int)$teacher_id;
 }
 
-$attendance_table_query .= "
-    ORDER BY a.Date DESC
-    LIMIT 10
-";
-
+$attendance_table_query .= " ORDER BY a.Date DESC LIMIT 10";
 $attendance_result = $conn->query($attendance_table_query);
 
 // ===================================
-// STUDENT MANAGEMENT
+// FETCH CLASSES / COURSES
 // ===================================
-$student_management_query = "
-    SELECT 
-        s.Student_ID,
-        s.Student_Name,
-        s.StudPhone_Number,
-        c.Subject_Name,
-        c.Subject_Code
-    FROM student s
+$class_data = [];
+$class_query = "SELECT c.Class_ID, c.Subject_Name, c.Subject_Code, c.Type, c.Venue, c.User_ID,
+                       s.Day AS Day_OfWeek, 
+                       TIME_FORMAT(s.Start_Time, '%H:%i') AS Start_Time, 
+                       TIME_FORMAT(s.End_Time, '%H:%i') AS End_Time,
+                       t.Teacher_Name
+                FROM class c
+                LEFT JOIN schedule s ON c.Class_ID = s.Class_ID
+                LEFT JOIN teacher t ON c.User_ID = t.User_ID";
 
-    LEFT JOIN attendance a
-        ON s.Student_ID = a.Student_ID
+if ($role === 'teacher' && !empty($teacher_id)) {
+    $class_query .= " WHERE c.User_ID = " . (int)$teacher_id;
+}
 
-    LEFT JOIN class c
-        ON a.Class_ID = c.Class_ID
+$class_query .= " ORDER BY FIELD(Day_OfWeek, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'), Start_Time ASC";
+$class_result = $conn->query($class_query);
 
-    ORDER BY s.Student_Name ASC
-";
+if ($class_result) {
+    while ($row = $class_result->fetch_assoc()) {
+        $class_data[] = $row;
+    }
+}
 
-$students = $conn->query($student_management_query);
+// ===================================
+// ATTENDANCE DATA
+// ===================================
+$attendance_data = [];
+$attendance_query = "SELECT att.Attendance_ID, att.Student_ID, s.Student_Name, att.Class_ID, 
+                            c.Subject_Name, att.Date, att.Status, t.Teacher_Name
+                     FROM attendance att
+                     JOIN student s ON att.Student_ID = s.Student_ID
+                     JOIN class c ON att.Class_ID = c.Class_ID
+                     JOIN teacher t ON c.User_ID = t.User_ID";
+
+if ($role === 'teacher' && !empty($teacher_id)) {
+    $attendance_query .= " WHERE c.User_ID = " . (int)$teacher_id;
+}
+
+$attendance_query .= " ORDER BY att.Date DESC";
+$attendance_result = $conn->query($attendance_query);
+
+if ($attendance_result) {
+    while ($row = $attendance_result->fetch_assoc()) {
+        $attendance_data[] = $row;
+    }
+}
 
 // ===================================
 // TEACHER SCHEDULE
 // ===================================
-
+$schedule_data = [];
 $schedule_query = "
     SELECT 
         t.Teacher_Name,
@@ -158,20 +299,15 @@ $schedule_query = "
         CONCAT(s.Start_Time, ' - ', s.End_Time) AS Formatted_Time,
         c.Venue
     FROM schedule s
-    JOIN class c 
-        ON s.Class_ID = c.Class_ID
-    JOIN teacher t 
-        ON c.User_ID = t.User_ID
+    JOIN class c ON s.Class_ID = c.Class_ID
+    JOIN teacher t ON c.User_ID = t.User_ID
 ";
 
 if ($role === 'teacher') {
-    $schedule_query .= "
-        WHERE c.User_ID = " . (int)$teacher_id;
+    $schedule_query .= " WHERE c.User_ID = " . (int)$teacher_id;
 }
 
 $schedule_result = $conn->query($schedule_query);
-
-$schedule_data = [];
 
 if ($schedule_result) {
     while ($row = $schedule_result->fetch_assoc()) {
@@ -180,74 +316,54 @@ if ($schedule_result) {
 }
 
 // ===================================
-// COURSE DATA
+// GENERATE ATTENDANCE SUMMARY DATA
 // ===================================
+$summary_data = [];
+$summary_query = "SELECT 
+                    st.Student_ID, 
+                    st.Student_Name, 
+                    c.Subject_Name,
+                    SUM(CASE WHEN att.Status = 'Present' THEN 1 ELSE 0 END) as present_count,
+                    SUM(CASE WHEN att.Status = 'Absent' THEN 1 ELSE 0 END) as absent_count
+                  FROM student st
+                  JOIN attendance att ON st.Student_ID = att.Student_ID
+                  JOIN class c ON att.Class_ID = c.Class_ID";
 
-$course_data = [];
+if ($role === 'teacher' && !empty($teacher_id)) {
+    $summary_query .= " WHERE c.User_ID = " . (int)$teacher_id;
+}
 
-$course_query = "
-    SELECT
-        c.Subject_Name,
-        t.Teacher_Name,
-        c.Type,
-        s.Day,
-        CONCAT(s.Start_Time, ' - ', s.End_Time) AS Time,
-        COUNT(a.Student_ID) AS Total_Students
-    FROM class c
+$summary_query .= " GROUP BY st.Student_ID, st.Student_Name, c.Subject_Name
+                    ORDER BY st.Student_Name ASC";
+                  
+$summary_result = $conn->query($summary_query);
 
-    LEFT JOIN teacher t
-        ON c.User_ID = t.User_ID
-
-    LEFT JOIN schedule s
-        ON c.Class_ID = s.Class_ID
-
-    LEFT JOIN attendance a
-        ON c.Class_ID = a.Class_ID
-
-    GROUP BY c.Class_ID
-";
-
-$course_result = $conn->query($course_query);
-
-if ($course_result) {
-
-    while ($row = $course_result->fetch_assoc()) {
-        $course_data[] = $row;
+if ($summary_result) {
+    while ($row = $summary_result->fetch_assoc()) {
+        $total = $row['present_count'] + $row['absent_count'];
+        $rate = $total > 0 ? round(($row['present_count'] / $total) * 100) : 100;
+        $summary_data[] = [
+            "studentId" => $row['Student_ID'],
+            "name" => $row['Student_Name'],
+            "course" => $row['Subject_Name'],
+            "present" => $row['present_count'],
+            "absent" => $row['absent_count'],
+            "rate" => $rate . "%",
+            "status" => $rate >= 80 ? "Excellent" : "At Risk"
+        ];
     }
 }
 
 // ===================================
-// ATTENDANCE DATA
+// FETCH ALL TEACHERS (for dropdowns)
 // ===================================
+$teachers_data = [];
+$teachers_query = "SELECT User_ID, Teacher_Name FROM teacher ORDER BY Teacher_Name ASC";
+$teachers_result = $conn->query($teachers_query);
 
-$attendance_data = [];
-
-$attendance_data_query = "
-    SELECT
-        s.Student_Name,
-        c.Type AS Class_Name,
-        c.Subject_Name,
-        t.Teacher_Name,
-        a.Date,
-        a.Status
-    FROM attendance a
-
-    JOIN student s
-        ON a.Student_ID = s.Student_ID
-
-    JOIN class c
-        ON a.Class_ID = c.Class_ID
-
-    JOIN teacher t
-        ON c.User_ID = t.User_ID
-";
-
-$attendance_data_result = $conn->query($attendance_data_query);
-
-if ($attendance_data_result) {
-
-    while ($row = $attendance_data_result->fetch_assoc()) {
-        $attendance_data[] = $row;
+if ($teachers_result) {
+    while ($row = $teachers_result->fetch_assoc()) {
+        $teachers_data[] = $row;
     }
 }
 ?>
@@ -274,15 +390,14 @@ if ($attendance_data_result) {
         };
 
         window.appData = {
-
+            userRole: <?php echo json_encode(strtolower($_SESSION['role'] ?? 'teacher')); ?>,
+            teacherId: <?php echo json_encode($teacher_id); ?>,
             students: <?php echo json_encode($student_data); ?>,
-
-            schedules: <?php echo json_encode($schedule_data); ?>,
-
-            courses: <?php echo json_encode($course_data ?? []); ?>,
-
-            attendance: <?php echo json_encode($attendance_data ?? []); ?>
-
+            schedules: <?php echo json_encode($class_data); ?>,
+            courses: <?php echo json_encode($class_data); ?>,
+            attendance: <?php echo json_encode($attendance_data); ?>,
+            summary: <?php echo json_encode($summary_data); ?>,
+            teachers: <?php echo json_encode($teachers_data); ?>
         };
     </script>
 </head>
@@ -521,7 +636,7 @@ if ($attendance_data_result) {
 
                 <?php if ($role === 'admin'): ?>
 
-                    <button class="action-btn admin-only">
+                    <button class="action-btn admin-only" onclick="openStudentForm()">
                         <i class="fa-solid fa-plus"></i>
                         Add Student
                     </button>
@@ -572,45 +687,7 @@ if ($attendance_data_result) {
                     </thead>
 
                     <tbody id="student-table-body">
-
-                        <?php while ($row = $students->fetch_assoc()): ?>
-
-                            <tr>
-
-                                <td>
-                                    <?php echo htmlspecialchars($row['Student_Name']); ?>
-                                </td>
-
-                                <td>
-                                    <?php echo htmlspecialchars($row['Subject_Name'] ?? 'N/A'); ?>
-                                </td>
-
-                                <td>
-                                    <?php echo htmlspecialchars($row['Subject_Code'] ?? 'N/A'); ?>
-                                </td>
-
-                                <td>
-                                    <?php echo htmlspecialchars($row['StudPhone_Number']); ?>
-                                </td>
-
-                                <td>Active</td>
-
-                                <?php if ($role === 'admin'): ?>
-
-                                    <td>
-                                        <a href="delete_student.php?id=<?php echo $row['Student_ID']; ?>"
-                                            class="action-btn delete-btn">
-
-                                            <i class="fa-solid fa-trash"></i>
-                                        </a>
-                                    </td>
-
-                                <?php endif; ?>
-
-                            </tr>
-
-                        <?php endwhile; ?>
-
+                        <!-- Populated by JavaScript -->
                     </tbody>
 
                 </table>
@@ -633,7 +710,7 @@ if ($attendance_data_result) {
 
                 <?php if ($role === 'admin'): ?>
 
-                    <button class="action-btn admin-only">
+                    <button class="action-btn admin-only" onclick="openCourseForm()">
                         <i class="fa-solid fa-plus"></i>
                         Add Course
                     </button>
@@ -661,67 +738,7 @@ if ($attendance_data_result) {
                     </thead>
 
                     <tbody id="course-table-body">
-
-                        <?php
-                        $course_query = "
-                            SELECT
-                                c.Class_ID,
-                                c.Subject_Name,
-                                c.Type,
-                                c.Venue,
-                                t.Teacher_Name
-                            FROM class c
-                            JOIN teacher t
-                                ON c.User_ID = t.User_ID
-                        ";
-
-                        if ($role === 'teacher') {
-                            $course_query .= "
-                                WHERE c.User_ID = " . (int)$teacher_id;
-                        }
-
-                        $course_result = $conn->query($course_query);
-
-                        if ($course_result && $course_result->num_rows > 0):
-
-                            while ($course = $course_result->fetch_assoc()):
-                        ?>
-
-                            <tr>
-
-                                <td><?php echo htmlspecialchars($course['Subject_Name']); ?></td>
-
-                                <td><?php echo htmlspecialchars($course['Teacher_Name']); ?></td>
-
-                                <td><?php echo htmlspecialchars($course['Type']); ?></td>
-
-                                <td><?php echo htmlspecialchars($course['Venue']); ?></td>
-
-                                <td class="admin-only">
-
-                                    <?php if ($role === 'admin'): ?>
-
-                                        <button class="action-btn delete-btn">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                            </tr>
-
-                        <?php
-                            endwhile;
-                        else:
-                        ?>
-
-                            <tr>
-                                <td colspan="5">No courses found.</td>
-                            </tr>
-
-                        <?php endif; ?>
-
+                        <!-- Populated by JavaScript -->
                     </tbody>
 
                 </table>
@@ -742,6 +759,12 @@ if ($attendance_data_result) {
                         Search and monitor attendance records.
                     </p>
                 </div>
+
+                <?php if ($role === 'teacher'): ?>
+                    <button class="primary-btn" onclick="openAttendanceForm()">
+                        <i class="fa-solid fa-plus"></i> Mark Attendance
+                    </button>
+                <?php endif; ?>
 
             </div>
 
@@ -801,73 +824,7 @@ if ($attendance_data_result) {
                     </thead>
 
                     <tbody id="attendance-table-body">
-
-                        <?php
-                        $attendance_page_query = "
-                            SELECT
-                                s.Student_Name,
-                                c.Subject_Name,
-                                t.Teacher_Name,
-                                a.Date,
-                                a.Status
-                            FROM attendance a
-                            JOIN student s
-                                ON a.Student_ID = s.Student_ID
-                            JOIN class c
-                                ON a.Class_ID = c.Class_ID
-                            JOIN teacher t
-                                ON c.User_ID = t.User_ID
-                        ";
-
-                        if ($role === 'teacher') {
-                            $attendance_page_query .= "
-                                WHERE t.User_ID = " . (int)$teacher_id;
-                        }
-
-                        $attendance_page_query .= "
-                            ORDER BY a.Date DESC
-                        ";
-
-                        $attendance_page_result = $conn->query($attendance_page_query);
-
-                        if ($attendance_page_result && $attendance_page_result->num_rows > 0):
-
-                            while ($attendance = $attendance_page_result->fetch_assoc()):
-                        ?>
-
-                            <tr>
-
-                                <td><?php echo htmlspecialchars($attendance['Student_Name']); ?></td>
-
-                                <td><?php echo htmlspecialchars($attendance['Subject_Name']); ?></td>
-
-                                <td><?php echo htmlspecialchars($attendance['Teacher_Name']); ?></td>
-
-                                <td><?php echo htmlspecialchars($attendance['Date']); ?></td>
-
-                                <td>
-
-                                    <span class="status <?php echo strtolower($attendance['Status']); ?>">
-
-                                        <?php echo htmlspecialchars($attendance['Status']); ?>
-
-                                    </span>
-
-                                </td>
-
-                            </tr>
-
-                        <?php
-                            endwhile;
-                        else:
-                        ?>
-
-                            <tr>
-                                <td colspan="5">No attendance records found.</td>
-                            </tr>
-
-                        <?php endif; ?>
-
+                        <!-- Populated by JavaScript -->
                     </tbody>
 
                 </table>
@@ -936,39 +893,7 @@ if ($attendance_data_result) {
                     </thead>
 
                     <tbody id="schedule-table-body">
-
-                        <?php if (!empty($schedule_data)): ?>
-
-                            <?php foreach ($schedule_data as $row): ?>
-
-                                <tr>
-
-                                    <td><?php echo htmlspecialchars($row['Teacher_Name']); ?></td>
-
-                                    <td><?php echo htmlspecialchars($row['Subject_Name']); ?></td>
-
-                                    <td><?php echo htmlspecialchars($row['Type']); ?></td>
-
-                                    <td><?php echo htmlspecialchars($row['Day']); ?></td>
-
-                                    <td><?php echo htmlspecialchars($row['Formatted_Time']); ?></td>
-
-                                    <td><?php echo htmlspecialchars($row['Venue']); ?></td>
-
-                                </tr>
-
-                            <?php endforeach; ?>
-
-                        <?php else: ?>
-
-                            <tr>
-                                <td colspan="6">
-                                    No scheduled classes found.
-                                </td>
-                            </tr>
-
-                        <?php endif; ?>
-
+                        <!-- Populated by JavaScript -->
                     </tbody>
 
                 </table>
@@ -1056,38 +981,58 @@ if ($attendance_data_result) {
                             <h1>My Tuition A+</h1>
                             <p>Attendance Management System</p>
                         </div>
+
                         <div class="report-badge" id="reportScopeBadge">
+
                             <?php echo ucfirst($role); ?> Report
+
                         </div>
+
                     </div>
+
                     <hr>
+
                     <div class="report-summary-box" id="report-summary-box"></div>
+
                     <table class="report-table">
+
                         <thead>
+
                             <tr>
                                 <th>No.</th>
                                 <th>Student Name</th>
                                 <th>Course</th>
                                 <th>Status</th>
                             </tr>
+
                         </thead>
+
                         <tbody id="report-table-body"></tbody>
+
                     </table>
+
                 </div>
+
             </div>
+
             <div class="report-button-area">
-                <button class="action-btn" onclick="downloadReport()">
-                    <i class="fa-solid fa-download"></i>
-                    Download Report
-                </button>
+
                 <button class="action-btn print-btn" onclick="printReport()">
+
                     <i class="fa-solid fa-print"></i>
+
                     Print Report
+
                 </button>
+
             </div>
+
         </section>
+
     </main>
+
     <script src="script.js"></script>
+
 </body>
 
 </html>
